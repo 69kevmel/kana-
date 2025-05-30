@@ -1,10 +1,10 @@
+import os
 import datetime
 import discord
 import feedparser
 import asyncio
-import os
 
-TOKEN = os.getenv('TOKEN_ID')
+TOKEN = os.getenv('TOKEN')
 CHANNEL_ID = int(os.getenv('CHANNEL_ID'))
 
 RSS_FEEDS = [
@@ -33,7 +33,9 @@ class WeedNewsBot(discord.Client):
             now = datetime.datetime.utcnow()
             today = now.date()
 
-            print("🔄 Vérification des news en français...")
+            print(f"🔄 [{now.strftime('%Y-%m-%d %H:%M:%S')}] Vérification des news en français...")
+
+            all_entries = []
 
             for feed_url in RSS_FEEDS:
                 feed = feedparser.parse(feed_url)
@@ -42,19 +44,28 @@ class WeedNewsBot(discord.Client):
                     if published:
                         entry_date = datetime.date(published.tm_year, published.tm_mon, published.tm_mday)
                         if entry_date == today and entry.link not in self.sent_links:
-                            self.sent_links.add(entry.link)
+                            all_entries.append(entry)
 
-                            message = (
-                                f"🌿 **Nouvelles fraîches de la journée sur le cannabis !** 🌿\n"
-                                f"**{entry.title}**\n"
-                                f"{entry.link}\n\n"
-                            )
+            if all_entries:
+                # Prendre une news aléatoire non encore postée
+                import random
+                entry = random.choice(all_entries)
+                self.sent_links.add(entry.link)
 
-                            await channel.send(message)
-                            print(f"✅ News postée : {entry.title}")
+                message = (
+                    f"🌿 **Nouvelles fraîches de la journée sur le cannabis !** 🌿\n"
+                    f"**{entry.title}**\n"
+                    f"{entry.link}\n\n"
+                    f"🗓️ Publié le : {datetime.date(entry.published_parsed.tm_year, entry.published_parsed.tm_mon, entry.published_parsed.tm_mday)}"
+                )
 
-            print("⏳ Attente de 60 minutes avant la prochaine vérification...")
-            await asyncio.sleep(3600) 
+                await channel.send(message)
+                print(f"✅ News postée : {entry.title}")
+            else:
+                print("❗ Aucune nouvelle à publier cette fois-ci.")
+
+            print("⏳ Attente de 3 heures avant la prochaine vérification...")
+            await asyncio.sleep(3 * 3600)  # 3 heures
 
     async def on_ready(self):
         print(f"✅ Bot connecté en tant que {self.user}")
